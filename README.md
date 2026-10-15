@@ -17,7 +17,13 @@ Windows only lets you show the taskbar on every monitor or on the main one. Hide
 
 Windows 10 (version 1607 or later) or Windows 11. HideBar runs on .NET Framework 4.x, which is part of Windows.
 
-## Build
+## Download
+
+Get [`HideBar.exe`](https://github.com/Orloxx23/hide-windonws-taskbar/releases/latest/download/HideBar.exe) from the [latest release](https://github.com/Orloxx23/hide-windonws-taskbar/releases/latest) and run it. There is nothing to install.
+
+The exe isn't code-signed, so Windows SmartScreen may warn you the first time you run it. Click **More info**, then **Run anyway**, or build it yourself as shown below.
+
+## Build from source
 
 No Visual Studio needed. `build.cmd` uses the C# compiler that comes with .NET Framework:
 
