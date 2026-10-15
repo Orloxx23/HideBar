@@ -11,7 +11,7 @@ namespace HideBar.UI
     class SettingsWindow : Form
     {
         const int ContentWidth = 600;
-        const string SourceUrl = "https://github.com/Orloxx23/hide-windonws-taskbar";
+        const string SourceUrl = "https://github.com/Orloxx23/HideBar";
 
         readonly TaskbarController controller;
         readonly Theme theme = Theme.FromWindows();
