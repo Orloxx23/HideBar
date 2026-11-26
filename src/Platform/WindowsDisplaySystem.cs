@@ -105,7 +105,11 @@ namespace HideBar.Platform
                 if (parts.Length > 1)
                 {
                     bool isActive = (device.StateFlags & NativeMethods.DISPLAY_DEVICE_ACTIVE) != 0;
-                    if (display.ModelId == null || isActive) display.ModelId = parts[1];
+                    if (display.ModelId == null || isActive)
+                    {
+                        display.ModelId = parts[1];
+                        display.DevicePath = device.DeviceID;
+                    }
                     if (isActive) return;
                 }
                 device.cb = Marshal.SizeOf(typeof(NativeMethods.DISPLAY_DEVICE));

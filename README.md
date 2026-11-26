@@ -37,6 +37,8 @@ The exe isn't code-signed, so Windows SmartScreen may warn you the first time yo
 |---|---|
 | Start with Windows | Runs HideBar in the background when you sign in, without opening the window. |
 | Use the freed space | Lets maximized windows stretch down to where the hidden taskbar was. |
+| Keep a small bottom margin | Sets the default bottom margin to 16 physical pixels when **Use the freed space** is enabled. When off, the default is 0. |
+| Margin (in each selected monitor's row) | Inherit the general setting or reserve 0 to 128 physical pixels on that monitor. Use 0 for the full area or try 16 if the cursor stutters in a maximized app such as Edge. Restore and maximize the window again after changing the margin. |
 | Show the icon in the notification area | When it's off, HideBar has no visible trace; open `HideBar.exe` again to get the window back. |
 
 | Command | What it does |
@@ -78,11 +80,12 @@ tools/              the script that draws assets/HideBar.ico
 
 ## How it works
 
-Each secondary taskbar in Windows 10 and 11 is an Explorer window of class `Shell_SecondaryTrayWnd`. HideBar finds the one on each chosen monitor, hides it with `ShowWindow`, and sets that monitor's work area to its full bounds with `SystemParametersInfo(SPI_SETWORKAREA)`.
+Each secondary taskbar in Windows 10 and 11 is an Explorer window of class `Shell_SecondaryTrayWnd`. HideBar finds the one on each chosen monitor and hides it with `ShowWindow`. With **Use the freed space** enabled, it expands the monitor's work area with `SystemParametersInfo(SPI_SETWORKAREA)`, accounting for the optional bottom margin.
 
 The work area is changed without broadcasting `WM_SETTINGCHANGE`. That broadcast makes Explorer lay out its taskbars again, which shows the hidden one. A timer checks every second, and again on every display change, and hides the taskbar if Explorer brought it back.
 
 Monitors are matched by the model ID in their EDID (for example `DWE2100`), so the choice survives plugging the monitor into another port or reordering your displays.
+Individual margins are saved by Windows monitor device path, so monitors of the same model can have different margins. Windows may assign a different path when a monitor changes ports.
 
 ## Limitations
 

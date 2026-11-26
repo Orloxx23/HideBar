@@ -7,7 +7,7 @@ using HideBar.UI.Controls;
 namespace HideBar.UI
 {
     // One display in the Monitors card: its number, name, details and the switch that hides its
-    // taskbar. Clicking anywhere on the row flips the switch.
+    // taskbar. A button opens the margin settings for a picked display.
     class MonitorRow : Panel
     {
         readonly Theme theme;
@@ -16,6 +16,7 @@ namespace HideBar.UI
         readonly Label detailLabel;
         readonly Label noteLabel;
         readonly ToggleSwitch toggle;
+        readonly Button marginButton;
         readonly int textLeft;
         bool updating;
 
@@ -36,12 +37,16 @@ namespace HideBar.UI
             toggle.Location = new Point(Width - toggle.Width, (Height - toggle.Height) / 2);
             toggle.CheckedChanged += delegate { if (!updating) OnPickedChanged(); };
 
+            marginButton = Style.MakeButton(theme, "Margin: default (16 px)", "Margin: 128 px");
+            marginButton.Location = new Point(toggle.Left - Style.S(12) - marginButton.Width,
+                (Height - marginButton.Height) / 2);
+
             textLeft = badge.Right + Style.S(12);
             nameLabel = MakeLine(Style.BodyStrong, theme.Text, Style.S(8));
             detailLabel = MakeLine(Style.Small, theme.SubtleText, nameLabel.Bottom + Style.S(1));
             noteLabel = Style.MakeLabel("", Style.Small, theme.SubtleText, theme.Surface);
 
-            Controls.AddRange(new Control[] { badge, nameLabel, detailLabel, noteLabel, toggle });
+            Controls.AddRange(new Control[] { badge, nameLabel, detailLabel, noteLabel, toggle, marginButton });
             foreach (Control control in new Control[] { this, badge, nameLabel, detailLabel })
             {
                 control.MouseClick += delegate { if (toggle.Visible) toggle.Checked = !toggle.Checked; };
@@ -49,8 +54,13 @@ namespace HideBar.UI
         }
 
         public bool Picked { get { return toggle.Checked; } }
+        public event EventHandler MarginClicked
+        {
+            add { marginButton.Click += value; }
+            remove { marginButton.Click -= value; }
+        }
 
-        public void Bind(Display display, bool picked, string name, string details)
+        public void Bind(Display display, bool picked, string name, string details, string marginText)
         {
             updating = true;
 
@@ -63,9 +73,16 @@ namespace HideBar.UI
             if (toggle.Checked != picked) toggle.Checked = picked;
             toggle.AccessibleName = "Hide the taskbar on " + name;
 
+            marginButton.Visible = marginText != null;
+            if (marginText != null)
+            {
+                if (marginButton.Text != marginText) marginButton.Text = marginText;
+                marginButton.AccessibleName = "Bottom margin for monitor " + display.Number + ". " + marginText;
+            }
+
             // Displays without a switch get a short note in its place.
             noteLabel.Visible = !canHide;
-            int textRight = toggle.Left;
+            int textRight = marginText != null ? marginButton.Left : toggle.Left;
             if (!canHide)
             {
                 SetText(noteLabel, display.IsPrimary ? "Always keeps its taskbar" : "Can't be identified");

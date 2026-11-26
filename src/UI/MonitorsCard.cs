@@ -56,8 +56,17 @@ namespace HideBar.UI
             for (int i = 0; i < rows.Count; i++)
             {
                 Display display = displays[i];
+                bool picked = controller.IsPicked(display);
+                string marginText = null;
+                if (picked && controller.ReclaimSpace && !string.IsNullOrEmpty(display.DevicePath))
+                {
+                    int? pixels = controller.GetBottomMarginOverride(display);
+                    marginText = pixels.HasValue
+                        ? "Margin: " + pixels.Value + " px"
+                        : "Margin: default (" + controller.DefaultBottomMargin + " px)";
+                }
                 string details = Strings.Details(display, controller.GetTaskbarState(display));
-                rows[i].Bind(display, controller.IsPicked(display), Strings.DisplayName(display), details);
+                rows[i].Bind(display, picked, Strings.DisplayName(display), details, marginText);
             }
 
             layoutView.SetDisplays(displays, controller.IsPicked, Describe);
@@ -82,6 +91,7 @@ namespace HideBar.UI
                 row.Location = new Point(Inset, top);
                 int index = i;
                 row.PickedChanged += delegate { controller.SetPicked(displays[index], rows[index].Picked); };
+                row.MarginClicked += delegate { EditBottomMargin(displays[index]); };
 
                 rows.Add(row);
                 Controls.Add(row);
@@ -89,6 +99,16 @@ namespace HideBar.UI
             }
             Height = top + Style.S(6);
             ResumeLayout();
+        }
+
+        void EditBottomMargin(Display display)
+        {
+            using (var dialog = new BottomMarginDialog(theme, display.Number,
+                controller.DefaultBottomMargin, controller.GetBottomMarginOverride(display)))
+            {
+                if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
+                    controller.SetBottomMarginOverride(display, dialog.BottomMarginOverride);
+            }
         }
 
         void SetStatus(string text)

@@ -10,6 +10,7 @@ namespace HideBar.UI
         readonly TaskbarController controller;
         readonly OptionRow startupRow;
         readonly OptionRow reclaimRow;
+        readonly OptionRow marginRow;
         readonly OptionRow trayIconRow;
         int nextTop;
 
@@ -28,11 +29,14 @@ namespace HideBar.UI
                 "Run HideBar in the background when you sign in.");
             reclaimRow = AddRow("Use the freed space",
                 "Maximized windows stretch down to where the hidden taskbar was.");
+            marginRow = AddRow("Keep a small bottom margin",
+                "Reserve " + TaskbarController.CompatibilityMarginPixels + " px by default. Each monitor can use its own margin.");
             trayIconRow = AddRow("Show the icon in the notification area",
                 "When it's off, open HideBar.exe again to come back to this window.");
 
             startupRow.CheckedChanged += delegate { controller.SetStartWithWindows(startupRow.Checked); };
             reclaimRow.CheckedChanged += delegate { controller.SetReclaimSpace(reclaimRow.Checked); };
+            marginRow.CheckedChanged += delegate { controller.SetKeepBottomMargin(marginRow.Checked); };
             trayIconRow.CheckedChanged += delegate { controller.SetShowTrayIcon(trayIconRow.Checked); };
 
             Height = nextTop + Style.S(6);
@@ -42,6 +46,8 @@ namespace HideBar.UI
         {
             startupRow.Checked = controller.StartWithWindows;
             reclaimRow.Checked = controller.ReclaimSpace;
+            marginRow.Checked = controller.KeepBottomMargin;
+            marginRow.Enabled = controller.ReclaimSpace;
             trayIconRow.Checked = controller.ShowTrayIcon;
         }
 

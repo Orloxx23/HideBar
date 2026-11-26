@@ -9,6 +9,8 @@ namespace HideBar.Tests
         {
             TestRunner.Add("hides the taskbar only on the picked display", HidesOnlyThePickedDisplay);
             TestRunner.Add("gives the space to maximized windows without broadcasting", GivesTheSpaceWithoutBroadcasting);
+            TestRunner.Add("can keep a bottom margin without showing the taskbar", KeepsABottomMargin);
+            TestRunner.Add("monitors of the same model can override the margin independently", OverridesBottomMarginPerMonitor);
             TestRunner.Add("leaves the work area alone when reclaiming space is off", LeavesTheWorkAreaAloneWhenReclaimingIsOff);
             TestRunner.Add("hides the taskbar again when Explorer shows it", HidesTheTaskbarAgain);
             TestRunner.Add("unpicking a display brings its taskbar and space back", UnpickingRestoresTheDisplay);
@@ -84,12 +86,64 @@ namespace HideBar.Tests
         {
             var desk = new Desk("SIDE");
             desk.Store.Stored.ReclaimSpace = false;
+            desk.Store.Stored.KeepBottomMargin = true;
+            desk.Store.Stored.BottomMargins[desk.Side.DevicePath] = 24;
             Rect before = desk.Side.WorkArea;
 
             desk.CreateController().Apply();
 
             Assert.False(desk.TaskbarVisible(desk.Side), "side taskbar visible");
             Assert.Equal(before, desk.Side.WorkArea, "side work area");
+        }
+
+        static void KeepsABottomMargin()
+        {
+            var desk = new Desk("WIDE");
+            TaskbarController controller = desk.CreateController();
+            controller.Apply();
+            desk.System.Calls.Clear();
+
+            controller.SetKeepBottomMargin(true);
+            var marginArea = new Rect(-3840, -946, 0, 1198);
+            Assert.Equal(marginArea, desk.Wide.WorkArea, "4K work area with margin");
+            Assert.False(desk.TaskbarVisible(desk.Wide), "4K taskbar visible");
+            Assert.True(desk.Store.Stored.KeepBottomMargin, "margin saved");
+            Assert.Equal(1, desk.Store.SaveCount, "settings save count");
+
+            controller.Apply();
+            Assert.Equal(1, desk.System.Calls.Count, "only one native call, including after the next tick");
+            Assert.Equal("workarea " + marginArea, desk.System.Calls[0], "work area set without broadcast");
+
+            controller.SetKeepBottomMargin(false);
+            Assert.Equal(desk.Wide.Bounds, desk.Wide.WorkArea, "full 4K work area");
+            Assert.False(desk.TaskbarVisible(desk.Wide), "4K taskbar visible after disabling margin");
+        }
+
+        static void OverridesBottomMarginPerMonitor()
+        {
+            var desk = new Desk("WIDE");
+            Display secondWide = desk.System.AddDisplay(4, "WIDE", new Rect(0, 1080, 3840, 3240), false);
+            TaskbarController controller = desk.CreateController();
+            controller.SetKeepBottomMargin(true);
+
+            controller.SetBottomMarginOverride(desk.Wide, 0);
+            controller.SetBottomMarginOverride(secondWide, 24);
+            Assert.Equal(desk.Wide.Bounds, desk.Wide.WorkArea, "first monitor uses the full area");
+            Assert.Equal(24, secondWide.Bounds.Bottom - secondWide.WorkArea.Bottom, "second monitor uses its custom margin");
+            Assert.Equal(0, desk.Store.Stored.BottomMargins[desk.Wide.DevicePath], "explicit zero saved");
+            Assert.Equal(24, desk.Store.Stored.BottomMargins[secondWide.DevicePath], "custom margin saved");
+
+            controller.SetKeepBottomMargin(false);
+            Assert.Equal(24, secondWide.Bounds.Bottom - secondWide.WorkArea.Bottom, "custom margin with default off");
+
+            controller.SetKeepBottomMargin(true);
+            controller.SetBottomMarginOverride(secondWide, null);
+            Assert.False(desk.Store.Stored.BottomMargins.ContainsKey(secondWide.DevicePath), "custom margin removed");
+            Assert.Equal(16, secondWide.Bounds.Bottom - secondWide.WorkArea.Bottom, "second monitor inherits the default");
+            Assert.Equal(desk.Wide.Bounds, desk.Wide.WorkArea, "first monitor still uses the full area");
+
+            controller.Restore();
+            Assert.Equal(desk.WorkAreaWithTaskbar(secondWide), secondWide.WorkArea, "second monitor's native area restored");
         }
 
         static void HidesTheTaskbarAgain()
@@ -121,6 +175,7 @@ namespace HideBar.Tests
         static void PausingAndResuming()
         {
             var desk = new Desk("SIDE");
+            desk.Store.Stored.KeepBottomMargin = true;
             TaskbarController controller = desk.CreateController();
             controller.Apply();
 
@@ -134,6 +189,7 @@ namespace HideBar.Tests
 
             controller.SetPaused(false);
             Assert.False(desk.TaskbarVisible(desk.Side), "side taskbar visible after resuming");
+            Assert.Equal(16, desk.Side.Bounds.Bottom - desk.Side.WorkArea.Bottom, "margin after resuming");
         }
 
         static void TheMainDisplayCannotBePicked()
