@@ -10,6 +10,7 @@ namespace HideBar.Tests
             TestRunner.Add("an empty file gives the defaults", EmptyFileGivesDefaults);
             TestRunner.Add("unknown keys and comments are ignored", IgnoresUnknownLines);
             TestRunner.Add("reads the monitor list from version 1.0", ReadsLegacyMonitorList);
+            TestRunner.Add("ignores invalid per-monitor margins", IgnoresInvalidBottomMargins);
         }
 
         static void RoundTrip()
@@ -18,6 +19,9 @@ namespace HideBar.Tests
             settings.MonitorIds.Add("DWE2100");
             settings.MonitorIds.Add("GSM5C9E");
             settings.ReclaimSpace = false;
+            settings.KeepBottomMargin = true;
+            settings.BottomMargins[@"\\?\DISPLAY#DWE2100#1"] = 0;
+            settings.BottomMargins[@"\\?\DISPLAY#DWE2100#2"] = 16;
             settings.ShowTrayIcon = false;
 
             AppSettings loaded = SettingsFormat.Parse(Lines(SettingsFormat.Format(settings)));
@@ -26,6 +30,9 @@ namespace HideBar.Tests
             Assert.True(loaded.MonitorIds.Contains("DWE2100"), "DWE2100");
             Assert.True(loaded.MonitorIds.Contains("gsm5c9e"), "GSM5C9E, matched without case");
             Assert.False(loaded.ReclaimSpace, "reclaimSpace");
+            Assert.True(loaded.KeepBottomMargin, "keepBottomMargin");
+            Assert.Equal(0, loaded.BottomMargins[@"\\?\display#dwe2100#1"], "explicit zero survives");
+            Assert.Equal(16, loaded.BottomMargins[@"\\?\DISPLAY#DWE2100#2"], "independent display margin");
             Assert.False(loaded.ShowTrayIcon, "showTrayIcon");
         }
 
@@ -35,6 +42,8 @@ namespace HideBar.Tests
 
             Assert.Equal(0, loaded.MonitorIds.Count, "monitor count");
             Assert.True(loaded.ReclaimSpace, "reclaimSpace");
+            Assert.False(loaded.KeepBottomMargin, "keepBottomMargin");
+            Assert.Equal(0, loaded.BottomMargins.Count, "all monitors inherit the default");
             Assert.True(loaded.ShowTrayIcon, "showTrayIcon");
         }
 
@@ -58,6 +67,17 @@ namespace HideBar.Tests
 
             Assert.Equal(2, loaded.MonitorIds.Count, "monitor count");
             Assert.True(loaded.MonitorIds.Contains("GSM5C9E"), "GSM5C9E");
+        }
+
+        static void IgnoresInvalidBottomMargins()
+        {
+            AppSettings loaded = SettingsFormat.Parse(new[]
+            {
+                "[bottomMargins]", "A=-1", "B=129", "C=twenty", "D=128"
+            });
+
+            Assert.Equal(1, loaded.BottomMargins.Count, "valid margin count");
+            Assert.Equal(128, loaded.BottomMargins["D"], "maximum allowed margin");
         }
 
         static string[] Lines(string text)

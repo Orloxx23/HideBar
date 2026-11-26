@@ -7,6 +7,7 @@ namespace HideBar.Core
         public IntPtr Handle { get; set; }
         public string DeviceName { get; set; }  // \\.\DISPLAY3
         public string ModelId { get; set; }     // DWE2100, from the EDID; null when Windows reports none
+        public string DevicePath { get; set; }  // Windows monitor device interface path
         public string Name { get; set; }        // ASUS VP249, from the EDID; null when it has none
         public bool IsPrimary { get; set; }
         public Rect Bounds { get; set; }

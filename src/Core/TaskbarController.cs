@@ -7,6 +7,8 @@ namespace HideBar.Core
     // pause or exit. It owns the settings and saves them whenever they change.
     class TaskbarController
     {
+        public const int CompatibilityMarginPixels = 16;
+
         readonly IDisplaySystem system;
         readonly ISettingsStore store;
         readonly IStartupRegistration startup;
@@ -26,6 +28,8 @@ namespace HideBar.Core
 
         public bool IsPaused { get; private set; }
         public bool ReclaimSpace { get { return settings.ReclaimSpace; } }
+        public bool KeepBottomMargin { get { return settings.KeepBottomMargin; } }
+        public int DefaultBottomMargin { get { return settings.KeepBottomMargin ? CompatibilityMarginPixels : 0; } }
         public bool ShowTrayIcon { get { return settings.ShowTrayIcon; } }
         public bool StartWithWindows { get { return startup.IsEnabled; } }
         public bool HasPickedDisplays { get { return settings.MonitorIds.Count > 0; } }
@@ -89,6 +93,36 @@ namespace HideBar.Core
             ChangeSettings(delegate { settings.ReclaimSpace = value; });
         }
 
+        public void SetKeepBottomMargin(bool value)
+        {
+            if (settings.KeepBottomMargin == value) return;
+            settings.KeepBottomMargin = value;
+            store.Save(settings);
+            Apply();
+        }
+
+        public int? GetBottomMarginOverride(Display display)
+        {
+            int pixels;
+            if (display.DevicePath != null && settings.BottomMargins.TryGetValue(display.DevicePath, out pixels))
+                return pixels;
+            return null;
+        }
+
+        public void SetBottomMarginOverride(Display display, int? pixels)
+        {
+            if (!display.CanHideTaskbar || string.IsNullOrEmpty(display.DevicePath)) return;
+            if (pixels < 0 || pixels > AppSettings.MaxBottomMarginPixels)
+                throw new ArgumentOutOfRangeException("pixels");
+            if (GetBottomMarginOverride(display) == pixels) return;
+
+            if (pixels.HasValue) settings.BottomMargins[display.DevicePath] = pixels.Value;
+            else settings.BottomMargins.Remove(display.DevicePath);
+
+            store.Save(settings);
+            Apply();
+        }
+
         public void SetShowTrayIcon(bool value)
         {
             if (settings.ShowTrayIcon == value) return;
@@ -128,11 +162,7 @@ namespace HideBar.Core
 
                     HideTaskbarsOn(display, taskbars);
 
-                    // Windows keeps reserving the hidden taskbar's space, so maximized windows would
-                    // leave a gap. The space is given back without broadcasting the change, because
-                    // the broadcast makes Explorer show the taskbar again.
-                    if (settings.ReclaimSpace && display.WorkArea != display.Bounds)
-                        system.SetWorkArea(display.Bounds, false);
+                    if (settings.ReclaimSpace) ReclaimWorkArea(display);
 
                     hiddenDisplayCount++;
                 }
@@ -182,6 +212,18 @@ namespace HideBar.Core
                 if (taskbar.IsVisible) system.Hide(taskbar);
                 hiddenTaskbars.Add(taskbar.Handle);
             }
+        }
+
+        void ReclaimWorkArea(Display display)
+        {
+            Rect area = display.Bounds;
+            int pixels = GetBottomMarginOverride(display) ?? DefaultBottomMargin;
+            // The display mode may have changed since the margin was saved.
+            int margin = Math.Min(pixels, Math.Max(0, area.Height - 1));
+            area = new Rect(area.Left, area.Top, area.Right, area.Bottom - margin);
+
+            // Broadcasting the change makes Explorer show the taskbar again.
+            if (display.WorkArea != area) system.SetWorkArea(area, false);
         }
 
         // Explorer creates new taskbar windows when it restarts; the old handles are gone.
